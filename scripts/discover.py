@@ -66,7 +66,7 @@ def compute_score(meta_a, meta_b):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python _discover.py <skill-name>")
+        print("Usage: python -m scripts.discover <skill-name>")
         sys.exit(1)
 
     target = sys.argv[1]
