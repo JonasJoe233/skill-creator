@@ -67,6 +67,7 @@ skill-creator/
 └── scripts/
     ├── __init__.py
     ├── aggregate_benchmark.py
+    ├── discover.py            # 跨 skill 关联发现（原 _discover.py）
     ├── generate_report.py
     ├── improve_description.py
     ├── package_skill.py
