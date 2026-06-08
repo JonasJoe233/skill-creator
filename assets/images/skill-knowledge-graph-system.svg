@@ -1,0 +1,201 @@
+<svg width="100%" viewBox="0 0 900 1080" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>从 Karpathy LLM Wiki 到 Jonas Skill 知识图谱</title>
+<desc>展示如何将 Karpathy 的 wiki&amp;raw 三层架构思想应用到 Skill 系统，形成自动编译、关联发现的知识图谱</desc>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+<marker id="arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="#0f6e56" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+<rect x="0" y="0" width="900" height="1080" fill="#f8f7f4"/>
+
+<!-- 标题 -->
+<text x="450" y="38" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="18" font-weight="600" fill="#333">从 Karpathy LLM Wiki 到 Skill Knowledge Graph</text>
+<text x="450" y="60" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="11" fill="#888">RAG 每次从零检索 → Wiki 编译一次持续积累 → 我们进一步：跨 Skill 关联发现 + 自动知识图谱</text>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- 第一层：问题 — 为什么不用 RAG -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<rect x="40" y="82" width="820" height="72" rx="10" fill="none" stroke="#a32d2d" stroke-width="0.5" stroke-dasharray="5 4" opacity="0.4"/>
+<text x="56" y="98" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="11" opacity="0.6" fill="#791f1f">Problem — 传统 RAG 的根本缺陷</text>
+
+<rect x="70" y="108" width="760" height="34" rx="8" fill="#fcebeb" stroke="#a32d2d" stroke-width="0.5"/>
+<text x="450" y="130" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="12" fill="#791f1f">每次查询从零检索 → 无积累 → 需要综合 5 个文档的问题每次都要重新拼凑 → 知识不 compound</text>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- 第二层：Karpathy 原始理论 -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<rect x="40" y="174" width="820" height="220" rx="10" fill="none" stroke="#534ab7" stroke-width="0.5" stroke-dasharray="5 4" opacity="0.4"/>
+<text x="56" y="190" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="11" opacity="0.6" fill="#3c3489">Karpathy 的解法 — LLM Wiki 三层架构</text>
+
+<!-- Layer 1: Raw Sources -->
+<rect x="70" y="204" width="240" height="80" rx="8" fill="#eeedfe" stroke="#534ab7" stroke-width="0.5"/>
+<rect x="70" y="204" width="110" height="24" rx="6" fill="#534ab7"/>
+<text x="125" y="220" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" font-weight="600" fill="#fff">Raw Sources</text>
+<text x="190" y="246" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="11" font-weight="500" fill="#3c3489">不可变原始文档</text>
+<text x="190" y="264" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#666">文章、论文、笔记、数据</text>
+<text x="190" y="278" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#666">LLM 只读不写，source of truth</text>
+
+<!-- Arrow -->
+<line x1="310" y1="244" x2="358" y2="244" stroke="#534ab7" stroke-width="1.5" marker-end="url(#arrow)"/>
+<text x="334" y="236" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="9" fill="#534ab7">Ingest</text>
+<text x="334" y="256" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="9" fill="#534ab7">编译一次</text>
+
+<!-- Layer 2: Wiki -->
+<rect x="368" y="204" width="240" height="80" rx="8" fill="#e1f5ee" stroke="#0f6e56" stroke-width="0.5"/>
+<rect x="368" y="204" width="80" height="24" rx="6" fill="#0f6e56"/>
+<text x="408" y="220" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" font-weight="600" fill="#fff">Wiki</text>
+<text x="488" y="246" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="11" font-weight="500" fill="#085041">LLM 维护的知识层</text>
+<text x="488" y="264" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#666">摘要、实体页、概念页、交叉引用</text>
+<text x="488" y="278" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#666">知识编译一次，持续积累 compound</text>
+
+<!-- Arrow -->
+<line x1="608" y1="244" x2="656" y2="244" stroke="#0f6e56" stroke-width="1.5" marker-end="url(#arrow)"/>
+<text x="632" y="236" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="9" fill="#0f6e56">指导</text>
+
+<!-- Layer 3: Schema -->
+<rect x="666" y="204" width="176" height="80" rx="8" fill="#e6f1fb" stroke="#185fa5" stroke-width="0.5"/>
+<rect x="666" y="204" width="90" height="24" rx="6" fill="#185fa5"/>
+<text x="711" y="220" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" font-weight="600" fill="#fff">Schema</text>
+<text x="754" y="246" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="11" font-weight="500" fill="#0c447c">结构约定</text>
+<text x="754" y="264" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#666">CLAUDE.md / AGENTS.md</text>
+<text x="754" y="278" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#666">定义 LLM 如何维护 wiki</text>
+
+<!-- 核心洞察 -->
+<rect x="70" y="300" width="772" height="82" rx="8" fill="#faf9f7" stroke="#ddd" stroke-width="0.5"/>
+<text x="86" y="320" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="11" font-weight="500" fill="#3c3489">Karpathy 的核心洞察:</text>
+<text x="86" y="340" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="11" fill="#555">1. 人类放弃维护 wiki 是因为 bookkeeping 成本 — LLM 不怕繁琐，一次能触 15 个文件</text>
+<text x="86" y="358" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="11" fill="#555">2. 人负责选源、提问、思考意义；LLM 负责摘要、交叉引用、归档、记账</text>
+<text x="86" y="376" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="11" fill="#555">3. Obsidian 是 IDE，LLM 是 programmer，Wiki 是 codebase</text>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- 第三层：我们的改造 — 映射到 Skill 系统 -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<rect x="40" y="414" width="820" height="260" rx="10" fill="none" stroke="#0f6e56" stroke-width="0.5" stroke-dasharray="5 4" opacity="0.4"/>
+<text x="56" y="430" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="11" opacity="0.6" fill="#085041">Jonas 的改造 — 将 LLM Wiki 映射到 Coding Agent Skill 系统</text>
+
+<!-- 左列：Karpathy 原版 -->
+<text x="200" y="454" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="12" font-weight="500" fill="#3c3489">Karpathy 原版</text>
+<!-- 右列：我们的实现 -->
+<text x="660" y="454" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="12" font-weight="500" fill="#085041">Skill 系统实现</text>
+
+<!-- 映射行1 -->
+<rect x="70" y="466" width="260" height="40" rx="8" fill="#eeedfe" stroke="#534ab7" stroke-width="0.5"/>
+<text x="200" y="490" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="11" fill="#3c3489">Raw Sources — 不可变原始文档</text>
+<line x1="330" y1="486" x2="418" y2="486" stroke="#5f5e5a" stroke-width="1.2" marker-end="url(#arrow)" stroke-dasharray="4 3"/>
+<text x="374" y="480" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="9" fill="#888">对应</text>
+<rect x="428" y="466" width="400" height="40" rx="8" fill="#e1f5ee" stroke="#0f6e56" stroke-width="0.5"/>
+<text x="628" y="490" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="11" fill="#085041">raw/YYYY-MM-DD/ — 每次执行归档（input.md + summary.md）</text>
+
+<!-- 映射行2 -->
+<rect x="70" y="518" width="260" height="40" rx="8" fill="#eeedfe" stroke="#534ab7" stroke-width="0.5"/>
+<text x="200" y="542" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="11" fill="#3c3489">Wiki — LLM 编译维护的知识层</text>
+<line x1="330" y1="538" x2="418" y2="538" stroke="#5f5e5a" stroke-width="1.2" marker-end="url(#arrow)" stroke-dasharray="4 3"/>
+<text x="374" y="532" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="9" fill="#888">对应</text>
+<rect x="428" y="518" width="400" height="40" rx="8" fill="#e1f5ee" stroke="#0f6e56" stroke-width="0.5"/>
+<text x="628" y="542" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="11" fill="#085041">wiki.md — 执行索引 + 跨次积累规律（LLM 自动编译）</text>
+
+<!-- 映射行3 -->
+<rect x="70" y="570" width="260" height="40" rx="8" fill="#eeedfe" stroke="#534ab7" stroke-width="0.5"/>
+<text x="200" y="594" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="11" fill="#3c3489">Schema — CLAUDE.md 结构约定</text>
+<line x1="330" y1="590" x2="418" y2="590" stroke="#5f5e5a" stroke-width="1.2" marker-end="url(#arrow)" stroke-dasharray="4 3"/>
+<text x="374" y="584" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="9" fill="#888">对应</text>
+<rect x="428" y="570" width="400" height="40" rx="8" fill="#e1f5ee" stroke="#0f6e56" stroke-width="0.5"/>
+<text x="628" y="594" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="11" fill="#085041">SKILL.md + Jonas Skill 规范 — 定义 LLM 如何运行和归档</text>
+
+<!-- 映射行4：我们的扩展 -->
+<rect x="70" y="622" width="260" height="40" rx="8" fill="#faeed4" stroke="#854f0b" stroke-width="0.5"/>
+<text x="200" y="646" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="11" fill="#633806">index.md + log.md — 导航和历史</text>
+<line x1="330" y1="642" x2="418" y2="642" stroke="#5f5e5a" stroke-width="1.2" marker-end="url(#arrow)" stroke-dasharray="4 3"/>
+<text x="374" y="634" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="9" fill="#854f0b">扩展</text>
+<rect x="428" y="622" width="400" height="40" rx="8" fill="#faeed4" stroke="#854f0b" stroke-width="0.5"/>
+<text x="628" y="646" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="11" fill="#633806">meta.md + _discover.py — 跨 skill 知识图谱自动关联</text>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- 第四层：我们的创新点 — 超越 Karpathy 的部分 -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<rect x="40" y="694" width="820" height="340" rx="10" fill="none" stroke="#185fa5" stroke-width="0.5" stroke-dasharray="5 4" opacity="0.4"/>
+<text x="56" y="710" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="11" opacity="0.6" fill="#0c447c">超越 Karpathy — 我们的三个扩展</text>
+
+<!-- 扩展1 -->
+<rect x="70" y="724" width="250" height="96" rx="8" fill="#e6f1fb" stroke="#185fa5" stroke-width="0.5"/>
+<rect x="70" y="724" width="30" height="24" rx="6" fill="#185fa5"/>
+<text x="85" y="740" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" font-weight="600" fill="#fff">1</text>
+<text x="195" y="740" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="12" font-weight="500" fill="#0c447c">多 Wiki 自动关联</text>
+<text x="86" y="762" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#555">Karpathy 是单一 wiki</text>
+<text x="86" y="778" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#555">我们：每个 skill 有独立 wiki</text>
+<text x="86" y="794" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#555">meta.md 声明数据流依赖</text>
+<text x="86" y="810" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#555">_discover.py 自动计算跨域关联</text>
+
+<!-- 扩展2 -->
+<rect x="340" y="724" width="250" height="96" rx="8" fill="#e6f1fb" stroke="#185fa5" stroke-width="0.5"/>
+<rect x="340" y="724" width="30" height="24" rx="6" fill="#185fa5"/>
+<text x="355" y="740" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" font-weight="600" fill="#fff">2</text>
+<text x="465" y="740" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="12" font-weight="500" fill="#0c447c">执行即归档</text>
+<text x="356" y="762" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#555">Karpathy: 手动 ingest 文档</text>
+<text x="356" y="778" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#555">我们: skill 每次执行自动归档</text>
+<text x="356" y="794" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#555">工作流最后一步强制写 raw/</text>
+<text x="356" y="810" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#555">wiki 编译嵌入工作流，零额外成本</text>
+
+<!-- 扩展3 -->
+<rect x="610" y="724" width="232" height="96" rx="8" fill="#e6f1fb" stroke="#185fa5" stroke-width="0.5"/>
+<rect x="610" y="724" width="30" height="24" rx="6" fill="#185fa5"/>
+<text x="625" y="740" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" font-weight="600" fill="#fff">3</text>
+<text x="726" y="740" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="12" font-weight="500" fill="#0c447c">上下文预加载</text>
+<text x="626" y="762" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#555">Karpathy: 查询时搜索 wiki</text>
+<text x="626" y="778" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#555">我们: 触发 skill 前先 discover</text>
+<text x="626" y="794" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#555">关联 skill 的 wiki.md 自动注入</text>
+<text x="626" y="810" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#555">LLM 带着跨域知识开始工作</text>
+
+<!-- 关联发现流程图 -->
+<rect x="70" y="840" width="772" height="180" rx="8" fill="#faf9f7" stroke="#ddd" stroke-width="0.5"/>
+<text x="86" y="860" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="11" font-weight="500" fill="#0c447c">完整数据流（以执行 hv-analysis 为例）:</text>
+
+<!-- 流程步骤 -->
+<rect x="86" y="874" width="136" height="36" rx="6" fill="#eeedfe" stroke="#534ab7" stroke-width="0.5"/>
+<text x="154" y="896" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#3c3489">用户触发 hv-analysis</text>
+<line x1="222" y1="892" x2="248" y2="892" stroke="#5f5e5a" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+<rect x="258" y="874" width="156" height="36" rx="6" fill="#e6f1fb" stroke="#185fa5" stroke-width="0.5"/>
+<text x="336" y="890" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#0c447c">_discover.py hv-analysis</text>
+<text x="336" y="904" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="9" fill="#888">扫描 meta.md 算分</text>
+<line x1="414" y1="892" x2="440" y2="892" stroke="#5f5e5a" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+<rect x="450" y="874" width="170" height="36" rx="6" fill="#e1f5ee" stroke="#0f6e56" stroke-width="0.5"/>
+<text x="535" y="890" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#085041">发现关联: example-query</text>
+<text x="535" y="904" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="9" fill="#888">data_produces 匹配 ×4</text>
+<line x1="620" y1="892" x2="646" y2="892" stroke="#5f5e5a" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+<rect x="656" y="874" width="170" height="36" rx="6" fill="#e1f5ee" stroke="#0f6e56" stroke-width="0.5"/>
+<text x="741" y="890" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#085041">加载 example-query/wiki.md</text>
+<text x="741" y="904" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="9" fill="#888">跨域积累知识注入上下文</text>
+
+<!-- 第二行 -->
+<line x1="741" y1="910" x2="741" y2="928" stroke="#5f5e5a" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+<rect x="556" y="932" width="270" height="36" rx="6" fill="#faeed4" stroke="#854f0b" stroke-width="0.5"/>
+<text x="691" y="954" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#633806">LLM 带着用户行为数据规律执行深度研究</text>
+
+<line x1="556" y1="950" x2="530" y2="950" stroke="#5f5e5a" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+<rect x="336" y="932" width="184" height="36" rx="6" fill="#faeed4" stroke="#854f0b" stroke-width="0.5"/>
+<text x="428" y="954" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#633806">执行完毕 → raw/ 归档 + wiki 更新</text>
+
+<line x1="336" y1="950" x2="310" y2="950" stroke="#5f5e5a" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+<rect x="86" y="932" width="214" height="36" rx="6" fill="#e1f5ee" stroke="#0f6e56" stroke-width="0.5"/>
+<text x="193" y="948" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#085041">新知识反哺全局图谱</text>
+<text x="193" y="962" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="9" fill="#888">下次其他 skill 也能发现这些规律</text>
+
+<!-- 底部总结 -->
+<text x="450" y="998" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="10" fill="#888" opacity="0.7">结果：每个 skill 每次执行都在为整个知识图谱做贡献 — 知识自动 compound，跨域关联自动浮现</text>
+
+<!-- 底部公式 -->
+<rect x="140" y="1016" width="620" height="36" rx="8" fill="#eeedfe" stroke="#534ab7" stroke-width="0.5"/>
+<text x="450" y="1039" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="12" font-weight="500" fill="#3c3489">Karpathy（单域 wiki 积累）+ 多域 meta 关联 + 执行即归档 = Skill Knowledge Graph</text>
+
+<!-- 水印 -->
+<text x="884" y="1069" text-anchor="end" font-family="'PingFang SC','Hiragino Sans GB',sans-serif" font-size="9" fill="#999" opacity="0.65">Jonas · SVG 架构图 Skill</text>
+</svg>
