@@ -153,7 +153,7 @@ data_consumes: [消费数据类型]
 
 运行关联发现：
 ```bash
-python3 ~/.claude/skills/_discover.py <skill-name>
+python3 ~/.claude/skills/skill-creator/scripts/discover.py <skill-name>
 ```
 
 ### 5. GitHub 同步
