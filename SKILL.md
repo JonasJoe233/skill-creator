@@ -32,6 +32,7 @@ tags:
 | [[skill-creator/scripts/run_eval.py\|scripts/run_eval.py]]                       | 运行单次评估                                   |
 | [[skill-creator/scripts/run_loop.py\|scripts/run_loop.py]]                       | Description 优化循环                         |
 | [[skill-creator/scripts/utils.py\|scripts/utils.py]]                             | 工具函数                                     |
+| [[skill-creator/scripts/discover.py\|scripts/discover.py]]                       | 跨 skill 关联发现（扫描 meta.md 计算 topic 重叠度）   |
 | `raw/`                                                                           | 每次 skill 创建/优化的归档（input.md + summary.md） |
 
 # Skill Creator
