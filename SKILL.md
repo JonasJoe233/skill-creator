@@ -156,17 +156,25 @@ data_consumes: [消费数据类型]
 python3 ~/.claude/skills/skill-creator/scripts/discover.py <skill-name>
 ```
 
-### 5. GitHub 同步
+### 5. GitHub 同步（新建 skill 的强制最后一步，与 raw/wiki 归档同级）
 
-有 git remote 的 skill，文件变更后会自动 commit+push（hook 处理）。
+**每个新建 skill 都必须建 private 远端并首推**，不是可选项。这一步在 skill 骨架（SKILL.md / meta.md / wiki.md）写完后**立即执行，不要等文件攒齐或任务全部完成**——否则新目录长期游离在版本控制外（历史教训：漏建 repo、忘设 upstream、`.DS_Store` 混入）。
 
-新建 skill 时若需要 GitHub 备份，创建 private 仓库：
+已有 git remote 的 skill，后续文件变更由 hook 自动 commit+push，无需手动。
+
+**新建 skill 固定执行以下序列（照抄，勿省略任何一条）：**
 ```bash
-gh repo create JonasJoe233/<skill-name>-skill --private
 cd ~/.claude/skills/<skill-name>
-git init && git remote add origin <repo-url>
-git add -A && git commit -m "init" && git push -u origin main
+printf '.DS_Store\n**/.DS_Store\n' > .gitignore          # 先放 gitignore，避免噪音入库
+gh repo create JonasJoe233/<skill-name>-skill --private  # 一律 private（skill 常含经营/敏感数据）
+git init -b main
+git remote add origin git@github.com:JonasJoe233/<skill-name>-skill.git
+git add -A
+git commit -m "init <skill-name> skill"
+git push -u origin main                                  # 必须 -u 设 upstream，否则 hook 后续 push 会失败
 ```
+
+**红线确认**：`gh repo create` + `push` 命中「公开发布/推送」红线，执行前须向用户确认**仓库名**（默认 `<skill-name>-skill`）；确认后一次性跑完上述序列。仓库一律 private，不询问 public/private。
 
 ---
 
