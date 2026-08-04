@@ -34,6 +34,7 @@ tags:
 | [[skill-creator/scripts/utils.py\|scripts/utils.py]]                             | 工具函数                                     |
 | [[skill-creator/scripts/discover.py\|scripts/discover.py]]                       | 跨 skill 关联发现（扫描 meta.md 计算 topic 重叠度）   |
 | `raw/`                                                                           | 每次 skill 创建/优化的归档（input.md + summary.md） |
+| [[skill-creator/scripts/check_meta]] | (待补充用途说明) |
 
 # Skill Creator
 
