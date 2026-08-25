@@ -318,4 +318,102 @@ Train score up while test score is flat means you overfit to the eval set. That'
 - `eval-viewer/generate_review.py` — zero-dependency HTTP server (port 3117 by default), `--static` emits an offline bundle
 - Review notes land in `feedback.json`; the main flow reads it to decide whether to iterate again
 
-<!-- APPEND-MARKER -->
+### Layout
+
+```
+skill-creator/
+├── SKILL.md                    # main file — full workflow definition
+├── meta.md                     # dependency declarations for cross-skill discovery
+├── wiki.md                     # execution index (LLM-maintained, never hand-edited)
+├── agents/
+│   ├── analyzer.md             # subagent: analyze benchmark results
+│   ├── comparator.md           # subagent: blind A/B comparison
+│   └── grader.md               # subagent: evaluate assertions
+├── assets/
+│   └── eval_review.html        # browser UI for editing eval cases
+├── eval-viewer/
+│   ├── generate_review.py      # viewer HTTP server
+│   └── viewer.html             # viewer frontend
+├── references/
+│   └── schemas.md              # JSON schemas for evals / grading / benchmark
+├── scripts/
+│   ├── aggregate_benchmark.py
+│   ├── check_meta.py           # meta.md quality gates (three hard checks)
+│   ├── discover.py             # cross-skill linkage scoring
+│   ├── generate_report.py
+│   ├── improve_description.py
+│   ├── package_skill.py        # bundle into a distributable .skill
+│   ├── quick_validate.py
+│   ├── run_eval.py
+│   ├── run_loop.py
+│   └── utils.py
+└── raw/                        # per-run archive (append-only)
+```
+
+### Quick start
+
+```bash
+git clone https://github.com/JonasJoe233/skill-creator.git ~/.claude/skills/skill-creator
+```
+
+Then tell Claude Code "create a new skill" or "optimize the description for skill X". The flow walks you through intent capture → draft → eval → iterate → archive.
+
+Run one description-optimization loop:
+
+```bash
+python3 ~/.claude/skills/skill-creator/scripts/run_loop.py \
+  --eval-set evals.json \
+  --skill-path ~/.claude/skills/your-skill \
+  --model claude-sonnet-5 \
+  --verbose
+```
+
+`--model` is required (it's the model that rewrites the description). The `--eval-set` JSON shape is documented in `references/schemas.md`.
+
+### Adding knowledge retention to an existing skill
+
+Minimum viable setup, two steps:
+
+```bash
+mkdir -p ~/.claude/skills/your-skill/raw
+touch ~/.claude/skills/your-skill/wiki.md
+```
+
+Add a closing step at the end of your SKILL.md:
+
+```markdown
+## Final step: archive and compile the wiki
+1. Create `raw/YYYY-MM-DD/` with input.md + summary.md
+2. Read wiki.md and update the index and accumulated patterns
+```
+
+To enable cross-skill discovery, add a `meta.md`:
+
+```yaml
+---
+skill: your-skill
+topics: [specific-topic-1, specific-topic-2]   # avoid generics like "report" or "document"
+product_scope: [product name]
+data_produces: [what this skill outputs]
+data_consumes: [what this skill needs]
+---
+```
+
+Verify:
+
+```bash
+python3 ~/.claude/skills/_discover.py your-skill                # inspect linkage
+python3 ~/.claude/skills/skill-creator/scripts/check_meta.py    # exit 0 = passing
+```
+
+### Requirements
+
+- Claude Code CLI (`claude` on PATH — evals run as `claude -p` subprocesses)
+- Python 3.10+ with `pyyaml`
+- `gh` CLI (optional, for packaging and repo creation)
+- Obsidian (optional, for wiki-link navigation and graph view)
+
+### Credits
+
+- Architecture inspired by [Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)
+- Built on the [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skill system
