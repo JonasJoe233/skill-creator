@@ -261,4 +261,61 @@ Differences from the original:
 | No cross-domain links | `meta.md` declares data deps; `discover.py` computes linkage |
 | Search the wiki at query time | Inject related skills' accumulated knowledge before execution |
 
+### Cross-skill knowledge graph
+
+Each skill declares what it produces and consumes in `meta.md`:
+
+```yaml
+---
+skill: hv-analysis
+topics: [deep-research, competitive-analysis]
+product_scope: [ProductA, ProductB]
+data_produces: [PDF research report, competitor comparison]
+data_consumes: [user behavior data, query log analysis]
+---
+```
+
+`scripts/discover.py` scans every skill's metadata and scores each pair with a weighted formula:
+
+- `topics` intersection × 2 — topical similarity
+- `product_scope` intersection × 3 — product-line overlap
+- `data_produces ∩ data_consumes` × 4 — data-flow dependency, highest weight, computed in both directions
+
+Before running a skill, run discovery and load the related skills' `wiki.md` into context. The LLM starts with judgments other workflows already earned instead of from scratch.
+
+**Example:** running the competitive-analysis skill automatically pulls in patterns accumulated by the user-behavior-analysis skill — because what the latter `data_produces` is exactly what the former `data_consumes`. No hand-written wiring.
+
+**This mechanism has a known failure mode:** stuffing generic terms into `topics` ("report", "document", "analysis") inflates linkage scores, dragging irrelevant skills into context and polluting it. So `scripts/check_meta.py` enforces three hard gates:
+
+1. `VISIBLE` — the number of skills discovery can read must equal the real skill-directory count (catches malformed `meta.md` that would otherwise be silently skipped)
+2. `ORPHAN` — skills with zero links must be zero
+3. `GENERIC` — generic-term hits must not exceed the baseline (blocks score-farming via vague topics)
+
+Exit code 0 or it doesn't pass. This is the grading standard, not a suggestion.
+
+### Features
+
+**Full skill lifecycle**
+- Create skills against one spec: bilingual trigger-word frontmatter, Obsidian wiki-link file manifest, mandatory archiving step
+- Iteration loop: run eval → human review in the HTML viewer → improve → repeat
+- Blind A/B comparison between versions (`agents/comparator.md`)
+
+**Knowledge retention**
+- Every run creates `raw/YYYY-MM-DD/` with `input.md` (what the user asked for) and `summary.md` (key decisions and pitfalls)
+- After archiving, the LLM updates `wiki.md` — maintaining the execution index and accumulating cross-run patterns
+- `scripts/discover.py` computes cross-skill linkage from `meta.md` declarations
+
+**Description trigger optimization**
+- `scripts/run_eval.py` — measures real trigger accuracy via `claude -p` subprocesses; defaults to 3 runs per query, 10 workers, 30s per-query timeout, 0.5 trigger-rate threshold
+- `scripts/improve_description.py` — LLM-driven description rewriting
+- `scripts/run_loop.py` — automated eval-and-improve loop, up to 5 iterations by default, with a **40% holdout to catch overfitting** (`--holdout 0` disables)
+- `scripts/generate_report.py` — HTML report with separate train and test scores
+
+Train score up while test score is flat means you overfit to the eval set. That's the one thing this loop exists to catch.
+
+**Eval viewer**
+- `eval-viewer/viewer.html` — keyboard-navigable SPA, renders PDF/images/xlsx inline, compares across iterations
+- `eval-viewer/generate_review.py` — zero-dependency HTTP server (port 3117 by default), `--static` emits an offline bundle
+- Review notes land in `feedback.json`; the main flow reads it to decide whether to iterate again
+
 <!-- APPEND-MARKER -->
