@@ -110,4 +110,106 @@ data_consumes: [用户行为数据, query日志分析]
 - `eval-viewer/generate_review.py` —— 零依赖 HTTP 服务（默认端口 3117），`--static` 出离线包
 - 评审意见写进 `feedback.json`，主流程读它决定要不要再迭一轮
 
+### 目录结构
+
+```
+skill-creator/
+├── SKILL.md                    # 主文件——完整工作流定义
+├── meta.md                     # 依赖声明，供跨 skill 关联发现
+├── wiki.md                     # 执行索引（LLM 维护，不手改）
+├── agents/
+│   ├── analyzer.md             # 子 Agent：分析 benchmark 结果
+│   ├── comparator.md           # 子 Agent：盲测 A/B 对比
+│   └── grader.md               # 子 Agent：评估 assertions
+├── assets/
+│   └── eval_review.html        # 浏览器 UI，编辑评估用例
+├── eval-viewer/
+│   ├── generate_review.py      # 查看器 HTTP 服务
+│   └── viewer.html             # 查看器前端
+├── references/
+│   └── schemas.md              # evals / grading / benchmark 的 JSON 结构定义
+├── scripts/
+│   ├── aggregate_benchmark.py
+│   ├── check_meta.py           # meta.md 质量验收（三项硬指标）
+│   ├── discover.py             # 跨 skill 关联分数计算
+│   ├── generate_report.py
+│   ├── improve_description.py
+│   ├── package_skill.py        # 打成可分发 .skill 包
+│   ├── quick_validate.py
+│   ├── run_eval.py
+│   ├── run_loop.py
+│   └── utils.py
+└── raw/                        # 每次执行的归档（只追加）
+```
+
+### 快速开始
+
+```bash
+git clone https://github.com/JonasJoe233/skill-creator.git ~/.claude/skills/skill-creator
+```
+
+然后对 Claude Code 说「创建一个新 skill」或「优化 xxx skill 的 description」。流程会带着走：意图捕获 → 草稿 → eval → 迭代 → 归档。
+
+跑一次 description 优化循环：
+
+```bash
+python3 ~/.claude/skills/skill-creator/scripts/run_loop.py \
+  --eval-set evals.json \
+  --skill-path ~/.claude/skills/your-skill \
+  --model claude-sonnet-5 \
+  --verbose
+```
+
+`--model` 是必填项（用于改写 description 的模型）。`--eval-set` 的 JSON 结构见 `references/schemas.md`。
+
+### 给任何现有 skill 加上知识沉淀
+
+最小可行配置两步：
+
+```bash
+mkdir -p ~/.claude/skills/your-skill/raw
+touch ~/.claude/skills/your-skill/wiki.md
+```
+
+在 SKILL.md 末尾加上收尾步骤：
+
+```markdown
+## 最后一步：归档并编译 wiki
+1. 创建 `raw/YYYY-MM-DD/`，写入 input.md + summary.md
+2. 读取 wiki.md 并更新索引与跨次积累
+```
+
+要启用跨 skill 发现，再加一个 `meta.md`：
+
+```yaml
+---
+skill: your-skill
+topics: [具体主题1, 具体主题2]      # 别写"报告""文档"这类泛词
+product_scope: [产品名]
+data_produces: [这个 skill 产出什么]
+data_consumes: [这个 skill 需要什么]
+---
+```
+
+验证：
+
+```bash
+python3 ~/.claude/skills/_discover.py your-skill   # 看关联结果
+python3 ~/.claude/skills/skill-creator/scripts/check_meta.py   # 退出码 0 才算合格
+```
+
+### 依赖
+
+- Claude Code CLI（`claude` 命令可用，eval 靠 `claude -p` 子进程跑）
+- Python 3.10+ 与 `pyyaml`
+- `gh` CLI（可选，打包/建仓时用）
+- Obsidian（可选，用于 wiki-link 导航和 graph view）
+
+### 致谢
+
+- 架构灵感来自 [Karpathy 的 LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)
+- 基于 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) Skill 系统构建
+
+---
+
 <!-- APPEND-MARKER -->
