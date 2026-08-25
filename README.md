@@ -53,4 +53,61 @@ A Claude Code skill for creating, evaluating, and iterating on other skills — 
 | 无跨域链接 | `meta.md` 声明数据依赖，`discover.py` 自动算关联 |
 | 查询时搜索 wiki | 执行前注入关联 skill 的积累知识 |
 
+### 跨 skill 知识图谱
+
+每个 skill 在 `meta.md` 里声明自己生产什么、消费什么：
+
+```yaml
+---
+skill: hv-analysis
+topics: [深度研究, 竞品分析]
+product_scope: [ProductA, ProductB]
+data_produces: [PDF研究报告, 竞品对比]
+data_consumes: [用户行为数据, query日志分析]
+---
+```
+
+`scripts/discover.py` 扫所有 skill 的 metadata，用加权算法算两两关联分数：
+
+- `topics` 交集 × 2 —— 主题相似度
+- `product_scope` 交集 × 3 —— 产品线重合度
+- `data_produces ∩ data_consumes` × 4 —— 数据流依赖，权重最高，双向计算
+
+执行某个 skill 前，先跑一次发现，把关联 skill 的 `wiki.md` 加载进上下文。LLM 带着别的工作流已经积累的判断开始干活，不是从零起步。
+
+**举例：** 跑竞品分析 skill 时，自动拉进用户行为分析 skill 沉淀下来的规律——因为后者 `data_produces` 的东西正好是前者 `data_consumes` 的。不需要手写任何配置。
+
+**这套机制有个已知失效模式**：往 `topics` 里塞泛词（"报告"、"文档"、"分析"）能让关联分数虚高，把不相关的 skill 也拉进上下文，反而污染。所以配了 `scripts/check_meta.py` 做验收，三项硬指标：
+
+1. `VISIBLE` —— discover 能读到的 skill 数必须等于真实 skill 目录数（防止 meta.md 格式错误导致静默漏掉）
+2. `ORPHAN` —— 关联数为 0 的 skill 必须为 0
+3. `GENERIC` —— 泛词命中数不得超过基线（防止靠塞泛词刷关联数）
+
+退出码 0 才算过。这是判卷标准，不是建议。
+
+### 功能
+
+**Skill 全生命周期**
+- 按统一规范创建 skill：双语触发词 frontmatter、Obsidian wiki-link 文件清单、强制归档收尾
+- 迭代循环：跑 eval → 在 HTML 查看器里人工评审 → 优化 → 重复
+- 版本间 A/B 盲测对比（`agents/comparator.md`）
+
+**知识沉淀**
+- 每次执行结束自动建 `raw/YYYY-MM-DD/`，写入 `input.md`（用户要什么）+ `summary.md`（关键决策/踩坑）
+- 归档后 LLM 自动更新 `wiki.md`——维护执行索引，积累跨次规律
+- `scripts/discover.py` 基于 meta.md 声明算跨 skill 关联
+
+**Description 触发优化**
+- `scripts/run_eval.py` —— 通过 `claude -p` 子进程实测触发准确性，默认每条 query 跑 3 次、10 并发、单条 30s 超时，触发率阈值 0.5
+- `scripts/improve_description.py` —— LLM 驱动的 description 改写
+- `scripts/run_loop.py` —— 自动评估+改进循环，默认最多 5 轮，**40% holdout 防过拟合**（`--holdout 0` 可关）
+- `scripts/generate_report.py` —— 输出带训练集/测试集分数的 HTML 报告
+
+训练集分数涨、测试集分数不涨，就是过拟合到 eval set 上了——这是这套循环唯一想拦住的东西。
+
+**Eval 查看器**
+- `eval-viewer/viewer.html` —— 键盘导航单页应用，内联渲染 PDF/图片/xlsx，支持跨迭代对比
+- `eval-viewer/generate_review.py` —— 零依赖 HTTP 服务（默认端口 3117），`--static` 出离线包
+- 评审意见写进 `feedback.json`，主流程读它决定要不要再迭一轮
+
 <!-- APPEND-MARKER -->
