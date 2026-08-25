@@ -212,4 +212,53 @@ python3 ~/.claude/skills/skill-creator/scripts/check_meta.py   # 退出码 0 才
 
 ---
 
+## English
+
+### The problem
+
+Writing skills has two real pain points. Most tooling only addresses the first.
+
+**One: the `description` is imprecise, so the skill doesn't fire when it should.** Claude Code decides whether to load a skill based on its `description` field. That field is pure natural language — the only way to know if it's good is to measure. Yet almost everyone rewrites it by feel, tries two queries, and ships. No eval set, no holdout. Whether the rewrite actually improved things or just overfit to those two queries is anyone's guess.
+
+**Two: skills forget everything the moment they finish.** You run a workflow, the agent produces genuinely useful judgments (this data source uses the wrong definition; that format won't parse on the client), and then it's gone. Next run of the same workflow starts from zero. RAG doesn't fix this — it re-retrieves and re-assembles raw documents on every query. Knowledge never compounds.
+
+For the second problem, Karpathy proposed a different architecture: instead of retrieving from raw docs at query time, have the LLM **actively maintain a persistent wiki**. Knowledge gets compiled once and accumulates, rather than being re-derived every time.
+
+This project combines both: a quantifiable eval loop for trigger accuracy, and a three-layer archive plus cross-skill knowledge graph for knowledge retention. The latter extends Karpathy's single-domain wiki so knowledge **compounds across independent workflows**, not just within one domain.
+
+### Architecture
+
+Four layers. The first three map Karpathy's LLM Wiki onto Claude Code Skills; the fourth is this project's extension.
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Schema layer — SKILL.md                             │
+│  How the LLM runs the skill + archiving as mandatory │
+│  final step                                          │
+├─────────────────────────────────────────────────────┤
+│  Wiki layer — wiki.md                                │
+│  LLM-compiled execution index + accumulated patterns │
+│  (never hand-edited)                                 │
+├─────────────────────────────────────────────────────┤
+│  Raw layer — raw/YYYY-MM-DD/                         │
+│  Immutable per-run archive (input.md + summary.md,   │
+│  append-only)                                        │
+├─────────────────────────────────────────────────────┤
+│  Graph layer — meta.md + discover.py  ← extension    │
+│  Declarative data deps → automatic cross-skill       │
+│  linkage + pre-execution context injection           │
+└─────────────────────────────────────────────────────┘
+```
+
+The load-bearing constraint: **the raw layer is append-only, and the wiki layer is written only by the LLM.** Hand-editing the wiki decouples it from the raw archive, and the next compile pass silently overwrites your edits — so the spec forbids manual edits outright.
+
+Differences from the original:
+
+| Karpathy's LLM Wiki | This project |
+|---|---|
+| Single-domain wiki | Many skills, each with its own wiki |
+| Manual document ingest | Archiving embedded at the end of the workflow, automatic |
+| No cross-domain links | `meta.md` declares data deps; `discover.py` computes linkage |
+| Search the wiki at query time | Inject related skills' accumulated knowledge before execution |
+
 <!-- APPEND-MARKER -->
