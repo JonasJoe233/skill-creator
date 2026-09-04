@@ -1,419 +1,215 @@
-# Skill Creator
+# skill-creator
+> 创建、评测、迭代其他 skill，并让每次执行的经验沉淀成可复用知识而不是跑完就丢 | Creates, evaluates and iterates on other skills, compounding what each run learns instead of discarding it
 
-[中文](#中文) · [English](#english)
-
-一个 Claude Code skill，用来创建、评测、迭代其他 skill —— 并让 skill 的执行经验沉淀成可复用的知识，而不是每次跑完就丢。
-
-A Claude Code skill for creating, evaluating, and iterating on other skills — with a built-in mechanism that compounds execution knowledge instead of discarding it after every run.
-
----
-
-## 中文
+## 中文说明
 
 ### 解决什么问题
 
-写 skill 有两个真实的痛点，市面上的方案基本只解决了第一个。
+写 skill 有两个真实痛点，市面上的方案基本只解决第一个。第一个是 description 写不准，该触发时不触发：这个字段是纯自然语言，好不好只能实测，但多数人凭感觉改一版、试两条 query 就上线，没有评估集也没有留出集，改完是真变好还是过拟合到自己那两条 query 上，说不清。第二个更隐蔽——skill 跑完就失忆：一次执行里产出了有用的判断（某个数据源口径不对、某种格式在客户端解析不了），下次跑同一个工作流从零开始，知识不累积。这个 skill 把两件事合在一起：用可量化的评估循环解决触发准确性，用三层归档加跨 skill 关联解决知识不沉淀。
 
-**第一个：description 写不准，skill 该触发时不触发。** Claude Code 靠 skill 的 `description` 决定要不要加载它。这个字段是纯自然语言，好不好只能实测——但绝大多数人是凭感觉改一版、试两条 query 就上线了。没有 eval set，没有 holdout，改完是变好还是过拟合到自己那两条 query 上，说不清。
+### 何时触发
 
-**第二个：skill 跑完就失忆。** 你让 Agent 跑一个工作流，它产出了有用的判断（这个数据源口径不对、那个格式客户端解析不了），然后全忘了。下次跑同一个工作流，从零开始。RAG 不解决这个——它每次查询都在重新检索和拼凑原始文档，知识不 compound。
+触发词：创建 skill、新建 skill、魔改 skill、优化 skill、测试 skill、create skill、improve skill、edit skill、optimize skill description。
 
-针对第二个问题，Karpathy 提过一个不同的架构：不要在查询时从原始文档检索，让 LLM **主动维护一层持久的 wiki**。知识编译一次，持续积累，不是每次重新推导。
+直接执行：用户明确说要创建、修改或优化某个 skill。
 
-这个项目把两件事合在一起：用可量化的 eval 循环解决触发准确性，用三层归档 + 跨 skill 知识图谱解决知识不沉淀。后者是在 Karpathy 原版单域 wiki 之上做的扩展 —— 让**知识跨独立工作流 compound**，而不只在单一领域内积累。
+先确认：用户说「把这个流程固化下来」时，先问一句是不是要做成一个 skill。
 
-### 核心架构
+### 工作流
 
-四层结构，前三层从 Karpathy 的 LLM Wiki 映射到 Claude Code Skills，第四层是本项目的扩展：
+创建一个新 skill：
 
-```
-┌─────────────────────────────────────────────────────┐
-│  Schema 层 — SKILL.md                                │
-│  定义 LLM 怎么运行 skill + 强制归档作为最后一步          │
-├─────────────────────────────────────────────────────┤
-│  Wiki 层 — wiki.md                                   │
-│  LLM 编译的执行索引 + 跨次规律积累（永不手动编辑）        │
-├─────────────────────────────────────────────────────┤
-│  Raw 层 — raw/YYYY-MM-DD/                            │
-│  不可变的每次执行归档（input.md + summary.md，只追加）   │
-├─────────────────────────────────────────────────────┤
-│  Graph 层 — meta.md + discover.py  ← 本项目扩展        │
-│  声明式数据依赖 → 自动跨 skill 关联 + 执行前上下文注入    │
-└─────────────────────────────────────────────────────┘
-```
+1. 捕获意图，再做访谈与调研，把用户真正要解决的问题问清楚，而不是照着一句话直接写文件。
+2. 按统一规范写 SKILL.md：frontmatter 的触发词分「直接执行」与「先确认」两类写清、正文开头第一节是带链接的目录文件说明、末尾强制带归档收尾步骤。
+3. 建 `raw/` 与 `wiki.md` 的归档机制，并写一份 `meta.md` 声明这个 skill 生产什么、消费什么，用于跨 skill 关联发现。
+4. 同步到远端仓库，这是新建 skill 的强制最后一步，与归档同级。
 
-关键约束是 **Raw 层只追加、Wiki 层只由 LLM 写**。人手改 wiki 会让它和 raw 归档脱钩，下一次编译就把手改的内容盖掉——所以规范里直接禁掉手动编辑。
+评估与迭代：
 
-与 Karpathy 原版的差异：
+1. 在同一轮里生成带 skill 与不带 skill 的两组运行，形成可对照的基线。
+2. 运行期间起草判定条目，运行完成后采集耗时数据。
+3. 评分、聚合，然后启动查看器做人工评审；评审意见落进反馈文件，主流程读它决定要不要再迭一轮。
+4. 需要判断两个版本谁更好时走盲测对比，避免知道哪个是新版带来的偏袒。
 
-| Karpathy LLM Wiki | 本项目 |
-|---|---|
-| 单域 wiki | 多 skill，每个有独立 wiki |
-| 手动 ingest 文档 | 归档嵌进工作流末尾，自动执行 |
-| 无跨域链接 | `meta.md` 声明数据依赖，`discover.py` 自动算关联 |
-| 查询时搜索 wiki | 执行前注入关联 skill 的积累知识 |
+description 优化：
 
-### 跨 skill 知识图谱
-
-每个 skill 在 `meta.md` 里声明自己生产什么、消费什么：
-
-```yaml
----
-skill: hv-analysis
-topics: [深度研究, 竞品分析]
-product_scope: [ProductA, ProductB]
-data_produces: [PDF研究报告, 竞品对比]
-data_consumes: [用户行为数据, query日志分析]
----
-```
-
-`scripts/discover.py` 扫所有 skill 的 metadata，用加权算法算两两关联分数：
-
-- `topics` 交集 × 2 —— 主题相似度
-- `product_scope` 交集 × 3 —— 产品线重合度
-- `data_produces ∩ data_consumes` × 4 —— 数据流依赖，权重最高，双向计算
-
-执行某个 skill 前，先跑一次发现，把关联 skill 的 `wiki.md` 加载进上下文。LLM 带着别的工作流已经积累的判断开始干活，不是从零起步。
-
-**举例：** 跑竞品分析 skill 时，自动拉进用户行为分析 skill 沉淀下来的规律——因为后者 `data_produces` 的东西正好是前者 `data_consumes` 的。不需要手写任何配置。
-
-**这套机制有个已知失效模式**：往 `topics` 里塞泛词（"报告"、"文档"、"分析"）能让关联分数虚高，把不相关的 skill 也拉进上下文，反而污染。所以配了 `scripts/check_meta.py` 做验收，三项硬指标：
-
-1. `VISIBLE` —— discover 能读到的 skill 数必须等于真实 skill 目录数（防止 meta.md 格式错误导致静默漏掉）
-2. `ORPHAN` —— 关联数为 0 的 skill 必须为 0
-3. `GENERIC` —— 泛词命中数不得超过基线（防止靠塞泛词刷关联数）
-
-退出码 0 才算过。这是判卷标准，不是建议。
-
-### 功能
-
-**Skill 全生命周期**
-- 按统一规范创建 skill：双语触发词 frontmatter、Obsidian wiki-link 文件清单、强制归档收尾
-- 迭代循环：跑 eval → 在 HTML 查看器里人工评审 → 优化 → 重复
-- 版本间 A/B 盲测对比（`agents/comparator.md`）
-
-**知识沉淀**
-- 每次执行结束自动建 `raw/YYYY-MM-DD/`，写入 `input.md`（用户要什么）+ `summary.md`（关键决策/踩坑）
-- 归档后 LLM 自动更新 `wiki.md`——维护执行索引，积累跨次规律
-- `scripts/discover.py` 基于 meta.md 声明算跨 skill 关联
-
-**Description 触发优化**
-- `scripts/run_eval.py` —— 通过 `claude -p` 子进程实测触发准确性，默认每条 query 跑 3 次、10 并发、单条 30s 超时，触发率阈值 0.5
-- `scripts/improve_description.py` —— LLM 驱动的 description 改写
-- `scripts/run_loop.py` —— 自动评估+改进循环，默认最多 5 轮，**40% holdout 防过拟合**（`--holdout 0` 可关）
-- `scripts/generate_report.py` —— 输出带训练集/测试集分数的 HTML 报告
-
-训练集分数涨、测试集分数不涨，就是过拟合到 eval set 上了——这是这套循环唯一想拦住的东西。
-
-**Eval 查看器**
-- `eval-viewer/viewer.html` —— 键盘导航单页应用，内联渲染 PDF/图片/xlsx，支持跨迭代对比
-- `eval-viewer/generate_review.py` —— 零依赖 HTTP 服务（默认端口 3117），`--static` 出离线包
-- 评审意见写进 `feedback.json`，主流程读它决定要不要再迭一轮
+1. 生成一批用于测触发的评估查询，先与用户确认这批查询是否代表真实用法。
+2. 跑优化循环：实测触发准确性、由模型改写 description、再测，默认最多若干轮，并留出一部分查询不参与训练。
+3. 看报告里训练集与测试集两个分数：训练涨、测试不涨，就是过拟合到评估集上了——这是整个循环唯一想拦住的东西。
+4. 确认后应用结果，最后归档并更新 `wiki.md`。
 
 ### 目录结构
 
 ```
 skill-creator/
-├── SKILL.md                    # 主文件——完整工作流定义
-├── meta.md                     # 依赖声明，供跨 skill 关联发现
-├── wiki.md                     # 执行索引（LLM 维护，不手改）
+├── SKILL.md                    # skill 主文件：skill 规范、创建流程、评估流程、description 优化、环境适配
+├── meta.md                     # 关联声明，供跨 skill 关联发现
+├── README.md                   # 本文件
+├── wiki.md                     # 历次 skill 创建与优化记录索引，由模型维护
+├── .gitignore                  # 忽略系统噪音文件
 ├── agents/
-│   ├── analyzer.md             # 子 Agent：分析 benchmark 结果
-│   ├── comparator.md           # 子 Agent：盲测 A/B 对比
-│   └── grader.md               # 子 Agent：评估 assertions
+│   ├── analyzer.md             # 子 agent 指令：分析评测结果
+│   ├── comparator.md           # 子 agent 指令：盲测 A/B 对比
+│   └── grader.md               # 子 agent 指令：按判定条目评分
 ├── assets/
-│   └── eval_review.html        # 浏览器 UI，编辑评估用例
+│   └── eval_review.html        # description 评测用的浏览器界面
 ├── eval-viewer/
-│   ├── generate_review.py      # 查看器 HTTP 服务
-│   └── viewer.html             # 查看器前端
+│   ├── generate_review.py      # 查看器服务，零依赖，可导出离线包
+│   └── viewer.html             # 查看器前端，键盘导航、内联渲染多种格式
 ├── references/
-│   └── schemas.md              # evals / grading / benchmark 的 JSON 结构定义
+│   └── schemas.md              # 评估集、评分、汇总结果的 JSON 结构定义
 ├── scripts/
-│   ├── aggregate_benchmark.py
-│   ├── check_meta.py           # meta.md 质量验收（三项硬指标）
+│   ├── run_eval.py             # 实测触发准确性
+│   ├── run_loop.py             # 自动评估与改进循环，带留出集
+│   ├── improve_description.py  # 由模型改写 description
+│   ├── generate_report.py      # 输出带训练集与测试集分数的报告
+│   ├── aggregate_benchmark.py  # 汇总评测结果
 │   ├── discover.py             # 跨 skill 关联分数计算
-│   ├── generate_report.py
-│   ├── improve_description.py
-│   ├── package_skill.py        # 打成可分发 .skill 包
-│   ├── quick_validate.py
-│   ├── run_eval.py
-│   ├── run_loop.py
-│   └── utils.py
-└── raw/                        # 每次执行的归档（只追加）
+│   ├── check_meta.py           # 关联声明质量验收，三项硬指标
+│   ├── quick_validate.py       # 快速校验
+│   ├── package_skill.py        # 打包成可分发的 skill 包
+│   └── utils.py                # 公共函数
+└── raw/                        # 每次执行的归档，只追加
 ```
 
-### 快速开始
+### 产物与归档
 
-```bash
-git clone https://github.com/JonasJoe233/skill-creator.git ~/.claude/skills/skill-creator
-```
+产物是一个符合规范的 skill 目录（含 SKILL.md、关联声明、归档机制），以及评估集、评测报告与优化后的 description。
 
-然后对 Claude Code 说「创建一个新 skill」或「优化 xxx skill 的 description」。流程会带着走：意图捕获 → 草稿 → eval → 迭代 → 归档。
+归档机制本身就是这个 skill 要推广的东西，分三层：`raw/` 是不可变的每次执行归档，按日期建目录放「用户要什么」与「关键决策和踩坑」，只追加不改写；`wiki.md` 是由模型编译的执行索引与跨次积累，永不手动编辑——人手改过之后它就和归档脱钩了，下一次编译会把手改的内容盖掉，所以规范里直接禁掉；`meta.md` 声明数据依赖，让关联发现能在执行前把相关 skill 已经积累的判断注入进来，于是模型带着别处赚到的经验开始干活，而不是从零起步。
 
-跑一次 description 优化循环：
-
-```bash
-python3 ~/.claude/skills/skill-creator/scripts/run_loop.py \
-  --eval-set evals.json \
-  --skill-path ~/.claude/skills/your-skill \
-  --model claude-sonnet-5 \
-  --verbose
-```
-
-`--model` 是必填项（用于改写 description 的模型）。`--eval-set` 的 JSON 结构见 `references/schemas.md`。
-
-### 给任何现有 skill 加上知识沉淀
-
-最小可行配置两步：
-
-```bash
-mkdir -p ~/.claude/skills/your-skill/raw
-touch ~/.claude/skills/your-skill/wiki.md
-```
-
-在 SKILL.md 末尾加上收尾步骤：
-
-```markdown
-## 最后一步：归档并编译 wiki
-1. 创建 `raw/YYYY-MM-DD/`，写入 input.md + summary.md
-2. 读取 wiki.md 并更新索引与跨次积累
-```
-
-要启用跨 skill 发现，再加一个 `meta.md`：
-
-```yaml
----
-skill: your-skill
-topics: [具体主题1, 具体主题2]      # 别写"报告""文档"这类泛词
-product_scope: [产品名]
-data_produces: [这个 skill 产出什么]
-data_consumes: [这个 skill 需要什么]
----
-```
-
-验证：
-
-```bash
-python3 ~/.claude/skills/_discover.py your-skill   # 看关联结果
-python3 ~/.claude/skills/skill-creator/scripts/check_meta.py   # 退出码 0 才算合格
-```
-
-### 依赖
-
-- Claude Code CLI（`claude` 命令可用，eval 靠 `claude -p` 子进程跑）
-- Python 3.10+ 与 `pyyaml`
-- `gh` CLI（可选，打包/建仓时用）
-- Obsidian（可选，用于 wiki-link 导航和 graph view）
-
-### 致谢
-
-- 架构灵感来自 [Karpathy 的 LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)
-- 基于 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) Skill 系统构建
-
----
+关联机制有一个已知失效模式：往主题字段里塞泛词能让关联分数虚高，把不相关的 skill 也拉进上下文，反而污染判断。所以配了验收脚本做三项硬指标——能被读到的 skill 数必须等于真实目录数（防止声明文件格式错误导致静默漏掉）、关联数为零的 skill 必须为零、泛词命中数不得超过基线。退出码为零才算过，这是判卷标准而不是建议。
 
 ## English
 
-### The problem
+### What problem it solves
 
-Writing skills has two real pain points. Most tooling only addresses the first.
+Writing skills has two real pain points, and most tooling only addresses the first. One: the description is imprecise, so the skill does not fire when it should. That field is pure natural language, and the only way to know whether it is good is to measure — yet the usual practice is rewriting it by feel, trying two queries and shipping, with no eval set and no holdout, leaving it unknowable whether the rewrite improved anything or merely overfit to those two queries. Two, and subtler: a skill forgets everything the moment it finishes. A run produces genuinely useful judgements — this data source uses the wrong definition, that format will not parse on the client — and the next run of the same workflow starts from zero. This skill combines both answers: a quantifiable eval loop for trigger accuracy, and a three-layer archive plus cross-skill linkage so knowledge accumulates.
 
-**One: the `description` is imprecise, so the skill doesn't fire when it should.** Claude Code decides whether to load a skill based on its `description` field. That field is pure natural language — the only way to know if it's good is to measure. Yet almost everyone rewrites it by feel, tries two queries, and ships. No eval set, no holdout. Whether the rewrite actually improved things or just overfit to those two queries is anyone's guess.
+### When it triggers
 
-**Two: skills forget everything the moment they finish.** You run a workflow, the agent produces genuinely useful judgments (this data source uses the wrong definition; that format won't parse on the client), and then it's gone. Next run of the same workflow starts from zero. RAG doesn't fix this — it re-retrieves and re-assembles raw documents on every query. Knowledge never compounds.
+Trigger phrases: 创建 skill, 新建 skill, 魔改 skill, 优化 skill, 测试 skill, create skill, improve skill, edit skill, optimize skill description.
 
-For the second problem, Karpathy proposed a different architecture: instead of retrieving from raw docs at query time, have the LLM **actively maintain a persistent wiki**. Knowledge gets compiled once and accumulates, rather than being re-derived every time.
+Act directly: the user explicitly asks to create, modify or optimise a skill.
 
-This project combines both: a quantifiable eval loop for trigger accuracy, and a three-layer archive plus cross-skill knowledge graph for knowledge retention. The latter extends Karpathy's single-domain wiki so knowledge **compounds across independent workflows**, not just within one domain.
+Confirm first: when the user says "let's make this process permanent", ask whether it should become a skill.
 
-### Architecture
+### Workflow
 
-Four layers. The first three map Karpathy's LLM Wiki onto Claude Code Skills; the fourth is this project's extension.
+Creating a new skill:
 
-```
-┌─────────────────────────────────────────────────────┐
-│  Schema layer — SKILL.md                             │
-│  How the LLM runs the skill + archiving as mandatory │
-│  final step                                          │
-├─────────────────────────────────────────────────────┤
-│  Wiki layer — wiki.md                                │
-│  LLM-compiled execution index + accumulated patterns │
-│  (never hand-edited)                                 │
-├─────────────────────────────────────────────────────┤
-│  Raw layer — raw/YYYY-MM-DD/                         │
-│  Immutable per-run archive (input.md + summary.md,   │
-│  append-only)                                        │
-├─────────────────────────────────────────────────────┤
-│  Graph layer — meta.md + discover.py  ← extension    │
-│  Declarative data deps → automatic cross-skill       │
-│  linkage + pre-execution context injection           │
-└─────────────────────────────────────────────────────┘
-```
+1. Capture the intent, then interview and research to establish the actual problem rather than writing files straight from one sentence.
+2. Write SKILL.md against one spec: trigger phrases in the frontmatter split into act-directly and confirm-first, a linked file manifest as the first section of the body, and a mandatory archiving step at the end.
+3. Set up the `raw/` and `wiki.md` archive mechanism and write a `meta.md` declaring what the skill produces and consumes, which drives cross-skill discovery.
+4. Sync to the remote repository — a mandatory final step for a new skill, on the same footing as archiving.
 
-The load-bearing constraint: **the raw layer is append-only, and the wiki layer is written only by the LLM.** Hand-editing the wiki decouples it from the raw archive, and the next compile pass silently overwrites your edits — so the spec forbids manual edits outright.
+Evaluating and iterating:
 
-Differences from the original:
+1. Generate both with-skill and baseline runs in the same turn so there is a comparable control.
+2. Draft the assertions while the runs are in flight, and capture timing data once they finish.
+3. Grade, aggregate, then open the viewer for human review; review notes land in a feedback file that the main flow reads to decide whether to iterate again.
+4. When two versions must be compared, run a blind comparison so knowing which one is new cannot bias the verdict.
 
-| Karpathy's LLM Wiki | This project |
-|---|---|
-| Single-domain wiki | Many skills, each with its own wiki |
-| Manual document ingest | Archiving embedded at the end of the workflow, automatic |
-| No cross-domain links | `meta.md` declares data deps; `discover.py` computes linkage |
-| Search the wiki at query time | Inject related skills' accumulated knowledge before execution |
+Optimising a description:
 
-### Cross-skill knowledge graph
-
-Each skill declares what it produces and consumes in `meta.md`:
-
-```yaml
----
-skill: hv-analysis
-topics: [deep-research, competitive-analysis]
-product_scope: [ProductA, ProductB]
-data_produces: [PDF research report, competitor comparison]
-data_consumes: [user behavior data, query log analysis]
----
-```
-
-`scripts/discover.py` scans every skill's metadata and scores each pair with a weighted formula:
-
-- `topics` intersection × 2 — topical similarity
-- `product_scope` intersection × 3 — product-line overlap
-- `data_produces ∩ data_consumes` × 4 — data-flow dependency, highest weight, computed in both directions
-
-Before running a skill, run discovery and load the related skills' `wiki.md` into context. The LLM starts with judgments other workflows already earned instead of from scratch.
-
-**Example:** running the competitive-analysis skill automatically pulls in patterns accumulated by the user-behavior-analysis skill — because what the latter `data_produces` is exactly what the former `data_consumes`. No hand-written wiring.
-
-**This mechanism has a known failure mode:** stuffing generic terms into `topics` ("report", "document", "analysis") inflates linkage scores, dragging irrelevant skills into context and polluting it. So `scripts/check_meta.py` enforces three hard gates:
-
-1. `VISIBLE` — the number of skills discovery can read must equal the real skill-directory count (catches malformed `meta.md` that would otherwise be silently skipped)
-2. `ORPHAN` — skills with zero links must be zero
-3. `GENERIC` — generic-term hits must not exceed the baseline (blocks score-farming via vague topics)
-
-Exit code 0 or it doesn't pass. This is the grading standard, not a suggestion.
-
-### Features
-
-**Full skill lifecycle**
-- Create skills against one spec: bilingual trigger-word frontmatter, Obsidian wiki-link file manifest, mandatory archiving step
-- Iteration loop: run eval → human review in the HTML viewer → improve → repeat
-- Blind A/B comparison between versions (`agents/comparator.md`)
-
-**Knowledge retention**
-- Every run creates `raw/YYYY-MM-DD/` with `input.md` (what the user asked for) and `summary.md` (key decisions and pitfalls)
-- After archiving, the LLM updates `wiki.md` — maintaining the execution index and accumulating cross-run patterns
-- `scripts/discover.py` computes cross-skill linkage from `meta.md` declarations
-
-**Description trigger optimization**
-- `scripts/run_eval.py` — measures real trigger accuracy via `claude -p` subprocesses; defaults to 3 runs per query, 10 workers, 30s per-query timeout, 0.5 trigger-rate threshold
-- `scripts/improve_description.py` — LLM-driven description rewriting
-- `scripts/run_loop.py` — automated eval-and-improve loop, up to 5 iterations by default, with a **40% holdout to catch overfitting** (`--holdout 0` disables)
-- `scripts/generate_report.py` — HTML report with separate train and test scores
-
-Train score up while test score is flat means you overfit to the eval set. That's the one thing this loop exists to catch.
-
-**Eval viewer**
-- `eval-viewer/viewer.html` — keyboard-navigable SPA, renders PDF/images/xlsx inline, compares across iterations
-- `eval-viewer/generate_review.py` — zero-dependency HTTP server (port 3117 by default), `--static` emits an offline bundle
-- Review notes land in `feedback.json`; the main flow reads it to decide whether to iterate again
+1. Generate a set of queries for measuring triggering, and confirm with the user that they represent real usage.
+2. Run the loop: measure trigger accuracy, have the model rewrite the description, measure again, for a bounded number of iterations, holding back part of the query set from training.
+3. Read both scores in the report: training up while test is flat means overfitting to the eval set, which is the one thing this loop exists to catch.
+4. Apply the result once confirmed, then archive and update `wiki.md`.
 
 ### Layout
 
 ```
 skill-creator/
-├── SKILL.md                    # main file — full workflow definition
-├── meta.md                     # dependency declarations for cross-skill discovery
-├── wiki.md                     # execution index (LLM-maintained, never hand-edited)
+├── SKILL.md                    # main file: the skill spec, creation flow, eval flow, description optimisation, environment notes
+├── meta.md                     # relation declarations for cross-skill discovery
+├── README.md                   # this file
+├── wiki.md                     # index of past creations and optimisations, model-maintained
+├── .gitignore                  # ignores OS noise files
 ├── agents/
-│   ├── analyzer.md             # subagent: analyze benchmark results
+│   ├── analyzer.md             # subagent: analyse benchmark results
 │   ├── comparator.md           # subagent: blind A/B comparison
-│   └── grader.md               # subagent: evaluate assertions
+│   └── grader.md               # subagent: grade against assertions
 ├── assets/
-│   └── eval_review.html        # browser UI for editing eval cases
+│   └── eval_review.html        # browser UI for description evaluation
 ├── eval-viewer/
-│   ├── generate_review.py      # viewer HTTP server
-│   └── viewer.html             # viewer frontend
+│   ├── generate_review.py      # viewer server, zero dependencies, offline bundle supported
+│   └── viewer.html             # viewer frontend, keyboard navigable, renders several formats inline
 ├── references/
-│   └── schemas.md              # JSON schemas for evals / grading / benchmark
+│   └── schemas.md              # JSON shapes for eval sets, grading and aggregated results
 ├── scripts/
-│   ├── aggregate_benchmark.py
-│   ├── check_meta.py           # meta.md quality gates (three hard checks)
+│   ├── run_eval.py             # measure trigger accuracy for real
+│   ├── run_loop.py             # automated eval-and-improve loop with a holdout
+│   ├── improve_description.py  # model-driven description rewriting
+│   ├── generate_report.py      # report with separate train and test scores
+│   ├── aggregate_benchmark.py  # aggregate benchmark results
 │   ├── discover.py             # cross-skill linkage scoring
-│   ├── generate_report.py
-│   ├── improve_description.py
-│   ├── package_skill.py        # bundle into a distributable .skill
-│   ├── quick_validate.py
-│   ├── run_eval.py
-│   ├── run_loop.py
-│   └── utils.py
-└── raw/                        # per-run archive (append-only)
+│   ├── check_meta.py           # quality gates on relation declarations
+│   ├── quick_validate.py       # fast validation
+│   ├── package_skill.py        # bundle into a distributable skill package
+│   └── utils.py                # shared helpers
+└── raw/                        # per-run archive, append-only
 ```
 
-### Quick start
+### Outputs & archiving
 
-```bash
-git clone https://github.com/JonasJoe233/skill-creator.git ~/.claude/skills/skill-creator
+The outputs are a spec-compliant skill directory (SKILL.md, relation declarations, archive mechanism) plus eval sets, evaluation reports and an improved description.
+
+The archive mechanism is itself what this skill propagates, in three layers. `raw/` is the immutable per-run archive, one dated folder holding what the user asked for and the key decisions and pitfalls, append-only and never rewritten. `wiki.md` is the model-compiled execution index and cross-run accumulation, never hand-edited — a manual edit decouples it from the archive and the next compile pass overwrites it, so the spec forbids it outright. `meta.md` declares data dependencies so discovery can inject the accumulated judgements of related skills before execution, letting the model start with experience earned elsewhere rather than from scratch.
+
+The linkage mechanism has a known failure mode: stuffing generic terms into the topics field inflates scores, drags irrelevant skills into context and pollutes the judgement. A validation script therefore enforces three hard gates — the number of readable skills must equal the real directory count (catching malformed declarations that would otherwise be silently skipped), skills with zero links must be zero, and generic-term hits must not exceed the baseline. Exit code zero or it does not pass; this is the grading standard, not a suggestion.
+
+## 补充说明 / Notes
+
+以下内容来自本仓库原有的手写说明，SKILL.md 中没有，保留在此。
+
+### 架构由来
+
+四层结构中，前三层是把 Karpathy 提出的 LLM Wiki 构想映射到 skill 系统上，第四层是本项目的扩展：
+
+```
+Schema 层 — SKILL.md      定义模型怎么运行这个 skill，并把归档写成强制的最后一步
+Wiki 层  — wiki.md        由模型编译的执行索引与跨次积累，永不手动编辑
+Raw 层   — raw/<日期>/     不可变的每次执行归档，只追加
+Graph 层 — meta.md + 关联发现脚本   声明式数据依赖，自动跨 skill 关联并在执行前注入上下文
 ```
 
-Then tell Claude Code "create a new skill" or "optimize the description for skill X". The flow walks you through intent capture → draft → eval → iterate → archive.
+与原始构想的差异：原版是单域 wiki、手动把文档 ingest 进去、没有跨域链接、查询时再去搜 wiki；这里是每个 skill 各有独立 wiki、归档嵌进工作流末尾自动执行、由声明式依赖自动算出关联，并在执行前把关联 skill 的积累注入进来。换句话说，扩展的部分是让知识跨独立工作流累积，而不只在单一领域内累积。
 
-Run one description-optimization loop:
+关联分数的算法：主题交集按较低权重计，产品线交集按中等权重计，一方产出正好是另一方所需的数据依赖按最高权重计并双向计算。举例来说，跑竞品分析类 skill 时会自动拉进行为分析类 skill 沉淀的规律，因为后者产出的正是前者消费的，不需要手写任何配置。
 
-```bash
-python3 ~/.claude/skills/skill-creator/scripts/run_loop.py \
-  --eval-set evals.json \
-  --skill-path ~/.claude/skills/your-skill \
-  --model claude-sonnet-5 \
-  --verbose
-```
+### 快速开始
 
-`--model` is required (it's the model that rewrites the description). The `--eval-set` JSON shape is documented in `references/schemas.md`.
+把这个仓库 clone 到 `~/.claude/skills/skill-creator`，然后直接说「创建一个新 skill」或「优化某个 skill 的 description」，流程会带着走：意图捕获、草稿、评估、迭代、归档。
 
-### Adding knowledge retention to an existing skill
+跑一次 description 优化循环时，指定评估集、目标 skill 路径与用于改写的模型；模型参数是必填项，评估集的 JSON 结构见 `references/schemas.md`。
 
-Minimum viable setup, two steps:
+### 给任何现有 skill 加上知识沉淀
 
-```bash
-mkdir -p ~/.claude/skills/your-skill/raw
-touch ~/.claude/skills/your-skill/wiki.md
-```
+最小可行配置两步：建一个 `raw/` 目录、建一个空的 `wiki.md`；然后在该 skill 的 SKILL.md 末尾加一节收尾步骤，写明先建当日归档目录并写入两份说明，再读取 `wiki.md` 更新索引与跨次积累。
 
-Add a closing step at the end of your SKILL.md:
+要启用跨 skill 发现，再补一个 `meta.md`，声明这个 skill 的主题、产品范围、产出与消费的数据——主题里写具体的词，不要写「报告」「文档」这类泛词。配好后跑一次关联发现看结果，再跑验收脚本，退出码为零才算合格。
 
-```markdown
-## Final step: archive and compile the wiki
-1. Create `raw/YYYY-MM-DD/` with input.md + summary.md
-2. Read wiki.md and update the index and accumulated patterns
-```
+### 依赖
 
-To enable cross-skill discovery, add a `meta.md`:
+命令行版的 Claude Code（评估通过子进程调用它来实测触发）、Python 3.10 及以上并安装 `pyyaml`、可选的 `gh` 命令行（打包与建仓时用）、可选的 Obsidian（用于 wiki 链接导航与图谱视图）。
 
-```yaml
----
-skill: your-skill
-topics: [specific-topic-1, specific-topic-2]   # avoid generics like "report" or "document"
-product_scope: [product name]
-data_produces: [what this skill outputs]
-data_consumes: [what this skill needs]
----
-```
+### 致谢
 
-Verify:
+架构灵感来自 Karpathy 的 LLM Wiki 构想，实现构建在 Claude Code 的 skill 系统之上。
 
-```bash
-python3 ~/.claude/skills/_discover.py your-skill                # inspect linkage
-python3 ~/.claude/skills/skill-creator/scripts/check_meta.py    # exit 0 = passing
-```
+### Notes (English)
 
-### Requirements
+From the repository's earlier hand-written README, not covered by SKILL.md.
 
-- Claude Code CLI (`claude` on PATH — evals run as `claude -p` subprocesses)
-- Python 3.10+ with `pyyaml`
-- `gh` CLI (optional, for packaging and repo creation)
-- Obsidian (optional, for wiki-link navigation and graph view)
+Architecture: of the four layers, the first three map Karpathy's LLM Wiki idea onto the skill system and the fourth is this project's extension — the schema layer (SKILL.md) defines how the model runs the skill and makes archiving a mandatory final step; the wiki layer is a model-compiled index and accumulation that is never hand-edited; the raw layer is an immutable, append-only per-run archive; and the graph layer adds declarative data dependencies with automatic cross-skill linkage and pre-execution context injection. The original was a single-domain wiki with manual document ingest, no cross-domain links, and search at query time; here each skill has its own wiki, archiving is embedded at the end of the workflow and runs automatically, linkage is computed from declared dependencies, and related skills' accumulation is injected before execution. The extension, in short, is making knowledge compound across independent workflows rather than only within one domain.
 
-### Credits
+Linkage scoring weights topical overlap lowest, product-line overlap in the middle, and a genuine data dependency — where one skill's output is exactly another's input — highest, computed in both directions. Running a competitive-analysis skill therefore pulls in the patterns accumulated by a behaviour-analysis skill automatically, with no hand-written wiring.
 
-- Architecture inspired by [Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)
-- Built on the [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skill system
+Quick start: clone this repository into `~/.claude/skills/skill-creator`, then say "create a new skill" or "optimise the description for skill X" and the flow walks through intent capture, draft, eval, iterate, archive. To run one description-optimisation loop, supply the eval set, the target skill path and the model used for rewriting; the model argument is required, and the eval-set JSON shape is documented in `references/schemas.md`.
+
+Adding knowledge retention to an existing skill takes two steps — create a `raw/` directory and an empty `wiki.md` — plus a closing section at the end of that skill's SKILL.md instructing it to create the dated archive folder with its two notes and then update the wiki index and accumulation. To enable cross-skill discovery, add a `meta.md` declaring topics, product scope, and what the skill produces and consumes, keeping topics specific rather than generic. Then run discovery to inspect the result and the validation script, where exit code zero means passing.
+
+Requirements: the Claude Code CLI (evals invoke it as subprocesses to measure triggering for real), Python 3.10 or newer with `pyyaml`, optionally the `gh` CLI for packaging and repository creation, and optionally Obsidian for wiki-link navigation and graph view.
+
+Credits: the architecture is inspired by Karpathy's LLM Wiki idea and built on the Claude Code skill system.
