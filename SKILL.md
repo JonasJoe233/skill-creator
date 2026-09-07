@@ -168,9 +168,9 @@ python3 ~/.claude/skills/skill-creator/scripts/discover.py <skill-name>
 ```bash
 cd ~/.claude/skills/<skill-name>
 printf '.DS_Store\n**/.DS_Store\n' > .gitignore          # 先放 gitignore，避免噪音入库
-gh repo create JonasJoe233/<skill-name>-skill --private  # 一律 private（skill 常含经营/敏感数据）
+gh repo create <owner>/<skill-name>-skill --private  # 一律 private（skill 常含经营/敏感数据）
 git init -b main
-git remote add origin git@github.com:JonasJoe233/<skill-name>-skill.git
+git remote add origin git@github.com:<owner>/<skill-name>-skill.git
 git add -A
 git commit -m "init <skill-name> skill"
 git push -u origin main                                  # 必须 -u 设 upstream，否则 hook 后续 push 会失败
