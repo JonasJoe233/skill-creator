@@ -141,11 +141,14 @@ side-by-side viewer for a human read, rather than pretending a grader can score 
 ## Quick start
 
 ```bash
+# the helper scripts live with the skill
+cd skills/skill-creator
+
 # structural sanity check on a skill
 python -m scripts.quick_validate <path/to/skill>
 
-# see how related skills overlap by topic
-python3 scripts/discover.py <skill-name>
+# see how related skills overlap by topic (defaults to ~/.claude/skills)
+python3 scripts/discover.py <skill-name> --skills-dir ~/.claude/skills
 
 # aggregate one eval iteration into a benchmark
 python -m scripts.aggregate_benchmark <workspace>/iteration-1 --skill-name <name>

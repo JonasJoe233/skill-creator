@@ -101,11 +101,14 @@ skill-name/
 ## 快速开始
 
 ```bash
+# 辅助脚本和 skill 放在一起
+cd skills/skill-creator
+
 # 对某个 skill 做结构体检
 python -m scripts.quick_validate <path/to/skill>
 
-# 看相关 skill 之间的主题重叠
-python3 scripts/discover.py <skill-name>
+# 看相关 skill 之间的主题重叠（默认 ~/.claude/skills）
+python3 scripts/discover.py <skill-name> --skills-dir ~/.claude/skills
 
 # 把一轮迭代聚合成 benchmark
 python -m scripts.aggregate_benchmark <workspace>/iteration-1 --skill-name <name>
