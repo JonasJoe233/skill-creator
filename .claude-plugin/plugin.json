@@ -1,0 +1,36 @@
+{
+  "name": "skill-creator",
+  "version": "1.0.0",
+  "displayName": "Skill Creator",
+  "description": "A workbench for building Claude Code agent skills that get better every run: the four-layer raw/wiki/SKILL/eval loop, cross-skill topic discovery, and an opt-in git sync layer that archives and backs up skill changes automatically.",
+  "author": {
+    "name": "Jonas (Jonas)",
+    "url": "https://github.com/JonasJoe233"
+  },
+  "homepage": "https://github.com/JonasJoe233/skill-creator",
+  "repository": "https://github.com/JonasJoe233/skill-creator",
+  "license": "MIT",
+  "keywords": ["skill", "skill-authoring", "agent-skills", "eval", "knowledge-base", "git-sync"],
+  "userConfig": {
+    "syncEnabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable the git sync layer (auto-commit skill edits on Write/Edit, push if an upstream is configured, and a SessionStart sweep for script-generated files). OFF by default: once enabled these hooks run every session, so opt in deliberately."
+    },
+    "skillsDir": {
+      "type": "string",
+      "default": "~/.claude/skills",
+      "description": "Directory that holds your skills. The sync layer only ever reads/commits files under this path."
+    },
+    "proxy": {
+      "type": "string",
+      "default": "",
+      "description": "Optional HTTP(S) proxy URL for git network operations (e.g. corporate egress). Empty means direct connection."
+    },
+    "keychainItem": {
+      "type": "string",
+      "default": "",
+      "description": "macOS Keychain generic-password item name to read GH_TOKEN from when GH_TOKEN is not already in the environment. Optional; macOS only."
+    }
+  }
+}

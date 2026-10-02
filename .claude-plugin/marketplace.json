@@ -1,0 +1,13 @@
+{
+  "name": "skill-creator-marketplace",
+  "owner": {
+    "name": "Jonas (Jonas)"
+  },
+  "plugins": [
+    {
+      "name": "skill-creator",
+      "source": "./",
+      "description": "Build agent skills that get better every run — four-layer raw/wiki/SKILL/eval loop + cross-skill discovery + opt-in git sync."
+    }
+  ]
+}

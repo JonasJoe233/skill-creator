@@ -1,5 +1,5 @@
 <svg width="100%" viewBox="0 0 900 1080" role="img" xmlns="http://www.w3.org/2000/svg">
-<title>从 Karpathy LLM Wiki 到 Jonas Skill 知识图谱</title>
+<title>从 Karpathy LLM Wiki 到 Skill 知识图谱</title>
 <desc>展示如何将 Karpathy 的 wiki&amp;raw 三层架构思想应用到 Skill 系统，形成自动编译、关联发现的知识图谱</desc>
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
@@ -103,7 +103,7 @@
 <line x1="330" y1="590" x2="418" y2="590" stroke="#5f5e5a" stroke-width="1.2" marker-end="url(#arrow)" stroke-dasharray="4 3"/>
 <text x="374" y="584" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="9" fill="#888">对应</text>
 <rect x="428" y="570" width="400" height="40" rx="8" fill="#e1f5ee" stroke="#0f6e56" stroke-width="0.5"/>
-<text x="628" y="594" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="11" fill="#085041">SKILL.md + Jonas Skill 规范 — 定义 LLM 如何运行和归档</text>
+<text x="628" y="594" text-anchor="middle" font-family="'Anthropic Sans','PingFang SC','Hiragino Sans GB',-apple-system,sans-serif" font-size="11" fill="#085041">SKILL.md + Skill 创作规范 — 定义 LLM 如何运行和归档</text>
 
 <!-- 映射行4：我们的扩展 -->
 <rect x="70" y="622" width="260" height="40" rx="8" fill="#faeed4" stroke="#854f0b" stroke-width="0.5"/>

@@ -18,6 +18,21 @@ below maps the two layer by layer, including the one place they meaningfully dif
 
 ---
 
+## Install
+
+This repo is both a Claude Code plugin and its own marketplace. From inside Claude Code:
+
+```
+/plugin marketplace add JonasJoe233/skill-creator
+/plugin install skill-creator@skill-creator-marketplace
+```
+
+Once installed, the `skill-creator` skill is available and the (optional) sync
+hooks are registered. The sync layer is **off by default** — see
+[The sync layer](#the-sync-layer-optional-off-by-default) to turn it on.
+
+---
+
 ## The problem it solves
 
 Three failure modes, all of which I hit before building this:
@@ -147,26 +162,64 @@ sequential runs with no baseline.
 ## Layout
 
 ```
-skill-creator/
-├── SKILL.md                      # the spec every skill in the system is held to
-├── meta.md                       # topic/data declarations for cross-skill discovery
-├── wiki.md                       # accumulated lessons from past skill builds
-├── agents/
-│   ├── grader.md                 # scores assertions against run outputs
-│   ├── comparator.md             # blind A/B between two skill versions
-│   └── analyzer.md               # explains *why* a version won
-├── scripts/
-│   ├── quick_validate.py         # structure check
-│   ├── run_eval.py               # single eval run
-│   ├── aggregate_benchmark.py    # iteration → benchmark.json
-│   ├── generate_report.py        # benchmark → report
-│   ├── improve_description.py    # trigger-accuracy optimisation
-│   ├── run_loop.py               # description optimisation loop
-│   ├── discover.py               # topic-overlap graph across skills
-│   └── package_skill.py          # bundle a skill for distribution
-├── references/schemas.md         # evals.json / grading.json contracts
-└── eval-viewer/                  # local HTML review UI
+skill-creator/                       # the repo = plugin + its own marketplace
+├── .claude-plugin/
+│   ├── plugin.json                  # manifest + userConfig (sync options)
+│   └── marketplace.json             # makes this repo installable as a marketplace
+├── skills/
+│   └── skill-creator/               # the skill itself
+│       ├── SKILL.md                 # the spec every skill in the system is held to
+│       ├── meta.md                  # topic/data declarations for cross-skill discovery
+│       ├── wiki.md                  # accumulated lessons (starter template)
+│       ├── agents/                  # grader / comparator / analyzer subagent prompts
+│       ├── scripts/                 # quick_validate, discover, run_eval, run_loop, ...
+│       ├── references/schemas.md    # evals.json / grading.json contracts
+│       └── eval-viewer/             # local HTML review UI
+├── hooks/hooks.json                 # registers the (opt-in) sync hooks
+└── scripts/                         # the sync layer (off by default)
+    ├── _synclib.py                  # shared config/git/credential helpers
+    ├── skill-autopush.py            # PostToolUse: commit+push edited skills
+    ├── skill-sweep.py               # SessionStart worker: archive raw/ catch-up
+    └── skill-sweep-launch.py        # SessionStart entry: surface + detach worker
 ```
+
+## The sync layer (optional, off by default)
+
+Layer 1 (`raw/`) is only durable if it actually leaves your laptop. The plugin
+ships a small automation layer that commits skill changes to git and pushes them
+for you — closing the gap where a run archives a finding locally and it never
+reaches a remote.
+
+Two hooks, both **disabled until you opt in**:
+
+- **PostToolUse (`Write|Edit`)** — when you edit a file under your skills dir,
+  commit it in the nearest git repo and push if that branch has an upstream.
+- **SessionStart** — a fast, detached sweep that catches files a skill produced
+  via scripts (which never trigger the edit hook). Conservative rule: it only
+  auto-commits changes under a skill's `raw/` dir; anything else is reported, not
+  touched.
+
+Enable and configure it in `/plugin` → this plugin → config, or via the
+`userConfig` fields in the manifest:
+
+| Option | Default | Meaning |
+|---|---|---|
+| `syncEnabled` | `false` | Master switch. Off = hooks self-exit, zero side effects. |
+| `skillsDir` | `~/.claude/skills` | The only directory the sync layer ever touches. |
+| `proxy` | `""` | Optional HTTP(S) proxy for git network ops. |
+| `keychainItem` | `""` | macOS Keychain item to read `GH_TOKEN` from, if not already in the environment. |
+
+**Git layout is auto-detected** — no strategy flag. If `skillsDir` itself is a
+git repo, everything lives in one repo; if each skill subdirectory is its own
+repo, each is synced independently. Credentials come from the `GH_TOKEN`
+environment variable first (works on any OS); the Keychain item is an optional
+macOS fallback. Tokens are only ever passed through the subprocess environment,
+never written into command arguments or logs.
+
+> **Security note.** Plugin hooks run on your machine for every matching event as
+> soon as the plugin is enabled — not only when the skill is invoked. That is why
+> the sync layer is off by default and its `matcher` is scoped to `Write|Edit`.
+> Read `scripts/*.py` before enabling; it is deliberately small.
 
 ## Design notes
 

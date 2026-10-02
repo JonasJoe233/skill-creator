@@ -42,7 +42,7 @@ tags:
 创建新 skill 并迭代优化的工具。整体流程：
 
 - 明确 skill 要做什么、怎么做
-- 写 skill 草稿（遵循下方「Jonas Skill 规范」）
+- 写 skill 草稿（遵循下方「Skill 创作规范」）
 - 设计测试 prompt，运行 claude-with-skill
 - 和用户一起评估结果（定性 + 定量）
 - 根据反馈重写，循环直到满意
@@ -50,11 +50,19 @@ tags:
 
 遇到用户已有草稿的情况，直接从评估/迭代步骤切入。用户说"不用跑那么多 eval，随便搞搞"也可以灵活处理。
 
+## 运行环境与路径约定（作为插件安装时）
+
+本 skill 以 Claude Code 插件形式分发，涉及三类路径，别混：
+
+- **本 skill 自带的工具脚本**：在 `${CLAUDE_PLUGIN_ROOT}/skills/skill-creator/`（下文凡调 `scripts/`、`eval-viewer/` 都从这里取；`${CLAUDE_PLUGIN_ROOT}` 由 Claude Code 注入，更新时会变，别往里写状态）。
+- **你为用户创建/管理的 skill**：落在**用户的 skills 目录** `<skillsDir>`，默认 `~/.claude/skills/`；若用户在插件配置里改了 `skillsDir` 以配置为准。
+- **本 skill 自身的归档（raw/wiki）**：写到 `${CLAUDE_PLUGIN_DATA}/skill-creator/`（跨更新保留、可写）。
+
 ---
 
-## Jonas Skill 规范（创建/修改任何 skill 时必须遵守）
+## Skill 创作规范（创建/修改任何 skill 时必须遵守）
 
-这是本地 skill 体系的核心约定，所有新建和修改的 skill 都必须符合。
+这是本 skill 创作体系的核心约定，所有新建和修改的 skill 都必须符合。
 
 ### 1. SKILL.md frontmatter 格式
 
@@ -155,28 +163,27 @@ data_consumes: [消费数据类型]
 
 运行关联发现：
 ```bash
-python3 ~/.claude/skills/skill-creator/scripts/discover.py <skill-name>
+python3 "${CLAUDE_PLUGIN_ROOT}/skills/skill-creator/scripts/discover.py" <skill-name> --skills-dir <skillsDir>
 ```
 
-### 5. GitHub 同步（新建 skill 的强制最后一步，与 raw/wiki 归档同级）
+### 5. 版本持久化（由插件同步层处理）
 
-**每个新建 skill 都必须建 private 远端并首推**，不是可选项。这一步在 skill 骨架（SKILL.md / meta.md / wiki.md）写完后**立即执行，不要等文件攒齐或任务全部完成**——否则新目录长期游离在版本控制外（历史教训：漏建 repo、忘设 upstream、`.DS_Store` 混入）。
+skill 的归档不止于本地。本插件带了一个**同步层**（见插件 README 的 Automation 一节），在你写 skill 文件时自动 commit、并按用户配置决定是否 push 到远端——这样 raw/ 证据和 wiki/SKILL 的演进天然进 git 历史，可审计、可回滚。**它默认关闭**，由用户在插件配置里显式开启，不会在任何人机器上擅自推送。
 
-已有 git remote 的 skill，后续文件变更由 hook 自动 commit+push，无需手动。
+- **默认（single-repo）**：所有 skill 共用一个 git 仓。用户开 `syncEnabled`、把 `skillsDir` 指向一个已初始化的仓库即可，新建 skill 无需单独建 repo。
+- **可选（per-skill）**：每个 skill 一个独立远端，适合 skill 含敏感/经营数据、要单独分享或单独控权的场景。为单个 skill 建仓的序列：
 
-**新建 skill 固定执行以下序列（照抄，勿省略任何一条）：**
 ```bash
-cd ~/.claude/skills/<skill-name>
-printf '.DS_Store\n**/.DS_Store\n' > .gitignore          # 先放 gitignore，避免噪音入库
-gh repo create <owner>/<skill-name>-skill --private  # 一律 private（skill 常含经营/敏感数据）
+cd <skillsDir>/<skill-name>
+printf '.DS_Store\n**/.DS_Store\n' > .gitignore
+gh repo create <your-owner>/<skill-name> --private   # <your-owner> 换成你自己的 GitHub 账号
 git init -b main
-git remote add origin git@github.com:<owner>/<skill-name>-skill.git
-git add -A
-git commit -m "init <skill-name> skill"
-git push -u origin main                                  # 必须 -u 设 upstream，否则 hook 后续 push 会失败
+git remote add origin git@github.com:<your-owner>/<skill-name>.git
+git add -A && git commit -m "init <skill-name> skill"
+git push -u origin main                               # -u 设 upstream，后续同步层才能 push
 ```
 
-**红线确认**：`gh repo create` + `push` 命中「公开发布/推送」红线，执行前须向用户确认**仓库名**（默认 `<skill-name>-skill`）；确认后一次性跑完上述序列。仓库一律 private，不询问 public/private。
+**红线确认**：`gh repo create` + `push` 命中「公开发布/推送」红线，执行前须向用户确认仓库名与 public/private。
 
 ---
 
@@ -200,7 +207,7 @@ git push -u origin main                                  # 必须 -u 设 upstrea
 
 ### 写 SKILL.md
 
-基于上述信息，按「Jonas Skill 规范」填写：
+基于上述信息，按「Skill 创作规范」填写：
 - frontmatter（name / description / tags）
 - 目录文件说明（第一节）
 - 核心工作流
@@ -301,7 +308,7 @@ skill-name/
 
 4. **启动查看器：**
    ```bash
-   nohup python ~/.claude/skills/skill-creator/eval-viewer/generate_review.py \
+   nohup python "${CLAUDE_PLUGIN_ROOT}/skills/skill-creator/eval-viewer/generate_review.py" \
      <workspace>/iteration-N \
      --skill-name "my-skill" \
      --benchmark <workspace>/iteration-N/benchmark.json \
@@ -357,7 +364,7 @@ kill $VIEWER_PID 2>/dev/null
 
 description 字段是决定 Claude 是否调用 skill 的主要机制。创建或改进 skill 后，提供优化 description 以提高触发准确性。
 
-优化后的 description 必须仍符合「Jonas Skill 规范」的格式（中英双语触发词 + 确定性/非确定性触发说明）。
+优化后的 description 必须仍符合「Skill 创作规范」的格式（中英双语触发词 + 确定性/非确定性触发说明）。
 
 ### 第一步：生成触发评估查询
 
@@ -393,7 +400,7 @@ python -m scripts.run_loop \
 
 ### 第四步：应用结果
 
-取 `best_description` 更新 SKILL.md frontmatter，并调整为「Jonas Skill 规范」格式（中英双语）。向用户展示前后对比和评分。
+取 `best_description` 更新 SKILL.md frontmatter，并调整为「Skill 创作规范」格式（中英双语）。向用户展示前后对比和评分。
 
 ---
 
@@ -409,11 +416,11 @@ python -m scripts.package_skill <path/to/skill-folder>
 
 skill 创建/优化完成后执行：
 
-1. 在 `~/.claude/skills/skill-creator/raw/YYYY-MM-DD_<skill-name>/` 下创建：
+1. 在 `${CLAUDE_PLUGIN_DATA}/skill-creator/raw/YYYY-MM-DD_<skill-name>/` 下创建（用插件数据目录，跨更新保留；不要写进 `${CLAUDE_PLUGIN_ROOT}`，那里更新即丢）：
    - `input.md`：创建/优化的 skill 名称、用户需求摘要、迭代次数
    - `summary.md`：最终 skill 的核心设计决策（3-5条）
 
-2. 读取 `~/.claude/skills/skill-creator/wiki.md` 并更新：
+2. 读取 `${CLAUDE_PLUGIN_DATA}/skill-creator/wiki.md` 并更新：
    - 索引表追加本次记录（日期 / skill 名 / 操作类型 / 核心变化）
    - wiki.md 由 LLM 维护，不要手动编辑
 
@@ -452,7 +459,7 @@ skill 创建/优化完成后执行：
 核心循环再强调一次：
 
 - 明确 skill 要做什么
-- 按「Jonas Skill 规范」写草稿（含 raw/ + wiki.md 机制）
+- 按「Skill 创作规范」写草稿（含 raw/ + wiki.md 机制）
 - 在测试 prompt 上运行 claude-with-skill
 - 和用户一起评估（**先生成查看器让用户看，再自己改**）
 - 循环直到满意

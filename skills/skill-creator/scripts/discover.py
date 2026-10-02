@@ -1,17 +1,25 @@
 #!/usr/bin/env python3
 """
-Usage: python -m scripts.discover <skill-name>
-   or: python scripts/discover.py <skill-name>
-Scans all meta.md files, computes topic overlap, outputs related skills and their wiki paths.
+Usage: python scripts/discover.py <skill-name> [--skills-dir PATH]
+Scans all meta.md files in the skills dir, computes topic overlap, outputs
+related skills and their wiki paths.
+
+Skills dir resolution (first that is set wins):
+  --skills-dir PATH  >  $CLAUDE_SKILLS_DIR  >  ~/.claude/skills
 """
 import sys
 import os
 import glob
 import yaml
 
-SKILLS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# When run from ~/.claude/skills/skill-creator/, go up one level to ~/.claude/skills/
-SKILLS_DIR = os.path.dirname(SKILLS_DIR)
+
+def resolve_skills_dir(cli_value=None):
+    if cli_value:
+        return os.path.abspath(os.path.expanduser(cli_value))
+    env = os.environ.get("CLAUDE_SKILLS_DIR")
+    if env:
+        return os.path.abspath(os.path.expanduser(env))
+    return os.path.expanduser("~/.claude/skills")
 
 def load_meta(skill_dir):
     meta_path = os.path.join(skill_dir, "meta.md")
@@ -65,12 +73,23 @@ def compute_score(meta_a, meta_b):
     return score
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: python -m scripts.discover <skill-name>")
+    args = sys.argv[1:]
+    skills_dir_cli = None
+    if "--skills-dir" in args:
+        i = args.index("--skills-dir")
+        try:
+            skills_dir_cli = args[i + 1]
+            del args[i:i + 2]
+        except IndexError:
+            print("--skills-dir needs a value")
+            sys.exit(1)
+    if not args:
+        print("Usage: python scripts/discover.py <skill-name> [--skills-dir PATH]")
         sys.exit(1)
 
-    target = sys.argv[1]
-    target_dir = os.path.join(SKILLS_DIR, target)
+    skills_dir = resolve_skills_dir(skills_dir_cli)
+    target = args[0]
+    target_dir = os.path.join(skills_dir, target)
     target_meta = load_meta(target_dir)
 
     if not target_meta:
@@ -78,7 +97,7 @@ def main():
         sys.exit(1)
 
     results = []
-    for entry in os.scandir(SKILLS_DIR):
+    for entry in os.scandir(skills_dir):
         if not entry.is_dir() or entry.name.startswith("_") or entry.name == target:
             continue
         meta = load_meta(entry.path)

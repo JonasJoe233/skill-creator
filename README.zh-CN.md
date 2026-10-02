@@ -10,6 +10,19 @@
 
 ---
 
+## 安装
+
+本仓库既是一个 Claude Code 插件，也是它自己的 marketplace。在 Claude Code 里：
+
+```
+/plugin marketplace add JonasJoe233/skill-creator
+/plugin install skill-creator@skill-creator-marketplace
+```
+
+装好后 `skill-creator` skill 即可用，（可选的）同步 hook 也随之注册。同步层**默认关闭**，开启方式见 [同步层](#同步层可选默认关闭)。
+
+---
+
 ## 它解决什么问题
 
 三种失效模式，都是我在做这套东西之前踩过的：
@@ -107,26 +120,48 @@ python eval-viewer/generate_review.py <workspace>/iteration-1 \
 ## 目录结构
 
 ```
-skill-creator/
-├── SKILL.md                      # 整个体系里所有 skill 都要遵守的规范
-├── meta.md                       # 主题与数据声明，供跨 skill 关联发现
-├── wiki.md                       # 历次 skill 构建积累下来的教训
-├── agents/
-│   ├── grader.md                 # 按断言给运行结果打分
-│   ├── comparator.md             # 两个版本之间的盲测 A/B
-│   └── analyzer.md               # 解释某一版**为什么**赢
-├── scripts/
-│   ├── quick_validate.py         # 结构体检
-│   ├── run_eval.py               # 单次评测
-│   ├── aggregate_benchmark.py    # 迭代目录 → benchmark.json
-│   ├── generate_report.py        # benchmark → 报告
-│   ├── improve_description.py    # 触发准确率优化
-│   ├── run_loop.py               # description 优化循环
-│   ├── discover.py               # 跨 skill 主题重叠图
-│   └── package_skill.py          # 打包 skill 用于分发
-├── references/schemas.md         # evals.json / grading.json 的结构约定
-└── eval-viewer/                  # 本地 HTML 评审界面
+skill-creator/                       # 仓库 = 插件 + 自带 marketplace
+├── .claude-plugin/
+│   ├── plugin.json                  # 清单 + userConfig（同步选项）
+│   └── marketplace.json             # 让本仓库可作为 marketplace 安装
+├── skills/
+│   └── skill-creator/               # skill 本体
+│       ├── SKILL.md                 # 整个体系里所有 skill 都要遵守的规范
+│       ├── meta.md                  # 主题与数据声明，供跨 skill 关联发现
+│       ├── wiki.md                  # 积累教训（起始模板）
+│       ├── agents/                  # grader / comparator / analyzer 子 agent 指令
+│       ├── scripts/                 # quick_validate、discover、run_eval、run_loop 等
+│       ├── references/schemas.md    # evals.json / grading.json 的结构约定
+│       └── eval-viewer/             # 本地 HTML 评审界面
+├── hooks/hooks.json                 # 注册（可选的）同步 hook
+└── scripts/                         # 同步层（默认关闭）
+    ├── _synclib.py                  # 共享的配置/git/凭证助手
+    ├── skill-autopush.py            # PostToolUse：commit+push 改动的 skill
+    ├── skill-sweep.py               # SessionStart worker：补归档 raw/
+    └── skill-sweep-launch.py        # SessionStart 入口：带出摘要 + detach worker
 ```
+
+## 同步层（可选，默认关闭）
+
+第 1 层（`raw/`）只有真正离开你的笔记本才算持久。插件带了一个小的自动化层，把 skill 改动 commit 到 git 并替你 push——补上「一次运行把发现归档在本地、却从没到远端」的缺口。
+
+两个 hook，**不开启就不生效**：
+
+- **PostToolUse（`Write|Edit`）**：你改动 skills 目录下的文件时，在最近的 git 仓里 commit，若该分支配了 upstream 就 push。
+- **SessionStart**：一个快速、detach 到后台的清扫，捕获 skill 用脚本生成、从不触发编辑 hook 的文件。保守规则：只自动 commit skill 的 `raw/` 目录下的改动；其余只报告、不动。
+
+在 `/plugin` → 本插件 → config 里开启和配置，或改清单的 `userConfig`：
+
+| 选项 | 默认 | 含义 |
+|---|---|---|
+| `syncEnabled` | `false` | 总开关。关=hook 自退、零副作用。 |
+| `skillsDir` | `~/.claude/skills` | 同步层唯一会碰的目录。 |
+| `proxy` | `""` | git 联网操作的可选 HTTP(S) 代理。 |
+| `keychainItem` | `""` | 环境里没有 `GH_TOKEN` 时，从该 macOS 钥匙串条目读取。 |
+
+**git 布局自动识别**，无需策略开关：`skillsDir` 本身是 git 仓就单仓统管；每个 skill 子目录各自是仓就各自同步。凭证优先读 `GH_TOKEN` 环境变量（跨平台），钥匙串条目是 macOS 可选兜底。token 只经子进程环境传递，绝不写进命令参数或日志。
+
+> **安全提示**：插件 hook 在插件启用那一刻就对每个匹配事件在你机器上运行——不只在 skill 被调用时。所以同步层默认关闭、`matcher` 收紧到 `Write|Edit`。开启前请先读 `scripts/*.py`，它刻意保持精简。
 
 ## 设计取舍
 
