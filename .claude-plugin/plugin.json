@@ -4,7 +4,7 @@
   "displayName": "Skill Creator",
   "description": "A workbench for building Claude Code agent skills that get better every run: the four-layer raw/wiki/SKILL/eval loop, cross-skill topic discovery, and an opt-in git sync layer that archives and backs up skill changes automatically.",
   "author": {
-    "name": "Jonas (Jonas)",
+    "name": "Jonas",
     "url": "https://github.com/JonasJoe233"
   },
   "homepage": "https://github.com/JonasJoe233/skill-creator",
